@@ -1,15 +1,11 @@
 #!/usr/bin/python3
-"""defines "Review" class"""
-from models.base_model import BaseModel
+"""class Review"""
+
+import models
 
 
-class Review(BaseModel):
-    """represents a review
-    attributes:
-        place_id (str): place's id
-        user_id (str): user's id
-        text (str): review
-    """
+class Review(models.BaseModel):
+    """Class to represent Reviews"""
     place_id = ""
     user_id = ""
     text = ""
