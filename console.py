@@ -1,200 +1,276 @@
 #!/usr/bin/python3
-"""Python Class CommandConsole for Airbnb Clone"""
+"""
+Entry point for the AirBNB clone console
+This contains and runs the CMD module and handles th entry
+point for the project
+"""
 
 import cmd
-from datetime import datetime
-import models
 import shlex
+import models
 import re
+import ast
+import inspect
+from models.base_model import BaseModel
+from models.city import City
+from models.place import Place
+from models.review import Review
+from models.state import State
+from models.user import User
+from models.amenity import Amenity
 
 
 class HBNBCommand(cmd.Cmd):
-    """Contain the commmanns of ours console."""
     prompt = '(hbnb) '
+    listOfProjectClass = ["BaseModel", "City", "Place", "Review", "State",
+                          "User", "Amenity"]
+    intAttrs = ["number_rooms", "number_bathrooms", "max_guest",
+                "price_by_night"]
+    floatAttrs = ["latitude", "longitude"]
 
-    def precmd(self, line):
-        return line.strip()
+    def do_EOF(self, arg):
+        """Exits console"""
+        return True
 
     def emptyline(self):
-        """If line is empty don't do anything."""
-        pass
+        """ overwriting the emptyline method """
+        return False
 
-    def do_quit(self, line):
+    def do_quit(self, arg):
         """Quit command to exit the program"""
         return True
 
-    def do_EOF(self, line):
-        """End of file. Exits the console."""
-        return True
+    def do_create(self, arg):
+        """
+****HELP****
+Creates a new instance of a class and prints ID and saves to file.
+Usage: create <class name>
+Usage: <class name>.create()
+"""
+        lineAsArgs = shlex.split(arg)
+        if not self.verify_class_in_project(lineAsArgs):
+            return
+        newInstance = eval(str(lineAsArgs[0]) + '()')
+        print(newInstance.id)
+        newInstance.save()
 
-    def do_create(self, line):
-        """Create un object instance."""
-        if len(line) == 0:
-            print("** class name missing **")
-        else:
-            try:
-                cls = models.class_dict[line]
-            except KeyError:
-                print("** class doesn't exist **")
-            else:
-                obj = cls()
-                obj.save()
-                print(obj.id)
+    def do_show(self, arg):
+        """
+****HELP****
+Prints the string representation of an instance
+based on the class name and id.
+Usage: show <class name> <id>
+Usage: <class name>.show(<id>)
+"""
+        lineAsArgs = shlex.split(arg)
+        if not self.verify_class_in_project(lineAsArgs):
+            return
+        if not self.verify_id_exists(lineAsArgs):
+            return
+        objectAsKey = str(lineAsArgs[0]) + '.' + str(lineAsArgs[1])
+        objectsInStorage = models.storage.all()
+        print(objectsInStorage[objectAsKey])
 
-    def do_show(self, line):
-        """Prints the string representation of an instance
-         based on class name and id."""
-        if len(line) == 0:
-            print("** class name missing **")
-        else:
-            line = line.split()
-            if line[0] in models.class_dict:
-                try:
-                    obj_id = line[0] + '.' + line[1]
-                except IndexError:
-                    print("** instance id missing **")
-                else:
-                    try:
-                        print(models.storage.all()[obj_id])
-                    except KeyError:
-                        print("** no instance found **")
-            else:
-                print("** class doesn't exist **")
+    def do_destroy(self, arg):
+        """
+****HELP****
+Deletes an instance based on the class name and id
+Usage: destroy <class name> <id>
+Usage: <class name>.destroy(<id>)
+"""
+        lineAsArgs = shlex.split(arg)
+        if not self.verify_class_in_project(lineAsArgs):
+            return
+        if not self.verify_id_exists(lineAsArgs):
+            return
+        objectAsKey = str(lineAsArgs[0]) + '.' + str(lineAsArgs[1])
+        models.storage.all().pop(objectAsKey)
+        models.storage.save()
 
-    def do_destroy(self, line):
-        """Destroy: Deletes an instance based on the class name and id."""
-        if len(line) == 0:
-            print("** class name missing **")
+    def do_all(self, arg):
+        """
+****HELP****
+Prints list of strings of all instances or specified instances
+Usage: all - Prints every saved object
+Usage: all <class name> - prints every saved object of "class name"
+Usage: <class name>.all()
+"""
+        lineAsArgs = shlex.split(arg)
+        objectsInStorage = models.storage.all()
+        listOfObjectToPrint = []
+        if len(lineAsArgs) == 0:
+            for value in objectsInStorage.values():
+                listOfObjectToPrint.append(str(value))
         else:
-            line = line.split()
-            if line[0] in models.class_dict:
-                try:
-                    obj_id = line[0] + '.' + line[1]
-                except IndexError:
-                    print("** instance id missing **")
-                else:
-                    try:
-                        del models.storage.all()[obj_id]
-                    except KeyError:
-                        print("** no instance found **")
-                    else:
-                        models.storage.save()
-            else:
-                print("** class doesn't exist **")
-
-    def do_all(self, line):
-        """Prints all string representation of all instances on the class name.
-        If the class doesn't exist will print to the screen."""
-        if len(line) == 0:
-            print([str(v) for v in models.storage.all().values()])
-        elif line not in models.class_dict:
-            print("** class doesn't exist **")
-        else:
-            print([str(v) for k, v in models.storage.all().items()
-                   if line in k])
+            if not self.verify_class_in_project(lineAsArgs):
+                return
+            for (key, value) in objectsInStorage.items():
+                if lineAsArgs[0] in key:
+                    listOfObjectToPrint.append(str(value))
+        print(listOfObjectToPrint)
 
     def do_update(self, line):
-        """Updates an instance based on the class name and id, by adding or
-        updating attribute on json file."""
-        if len(line) == 0:
-            print("** class name missing **")
+        """
+****HELP****
+Updates an instance based on the class name and id.
+Usage: update <class name> <id>, <attribute name>, <attribute value>
+Usage: <class name>.update(<id>, <attribute name>, <attribute value>)
+****EXTRA****
+Can take a dictionary as input to update multiple attributes at once
+Usage: update <class name> <id>, <dictionary representation>
+usage: <class name>.update(<id>, <dictionary representation>)"""
+        lineArgs = shlex.split(line)
+        ArgLineDict = None
+        if not self.verify_class_in_project(lineArgs):
+            return
+        if not self.verify_id_exists(lineArgs):
+            return
+        objAsKey = str(lineArgs[0]) + '.' + str(lineArgs[1])
+        if "{" in line:
+            ArgLineDict = self.check_dictionary_exists(line)
+        if ArgLineDict is None:
+            if not self.verify_attribute_arguments(lineArgs):
+                return
+            self.set_Attribute_correctly(objAsKey, lineArgs[2], lineArgs[3])
+        if isinstance(ArgLineDict, dict):
+            for (key, value) in ArgLineDict.items():
+                self.set_Attribute_correctly(objAsKey, key, value)
+        models.storage.all()[objAsKey].save()
+
+    @staticmethod
+    def check_dictionary_exists(line):
+        """ Method checks if update was passed a dictionary"""
+        lineAsArgs = line.split("{")
+        dictionaryInLine = "{" + lineAsArgs[1]
+        try:
+            typeDictionary = ast.literal_eval(dictionaryInLine)
+        except SyntaxError:
+            return None
+        return (typeDictionary)
+
+    @classmethod
+    def set_Attribute_correctly(cls, objAsKey, key, value):
+        """sets the attributes with the correcy casting"""
+        if key in cls.intAttrs:
+            setattr(models.storage.all()[objAsKey], key, int(value))
+        elif key in cls.floatAttrs:
+            setattr(models.storage.all()[objAsKey], key, float(value))
         else:
-            pattern = "[^\s\"\']+|\"[^\"]*\"|\'[^\']*\'"
-            pattern = re.compile(pattern)
-            line = re.findall(pattern, line)
-            for i in range(len(line)):
-                line[i] = line[i].strip("\"'")
-            if line[0] in models.class_dict:
-                try:
-                    obj_id = line[0] + '.' + line[1]
-                except IndexError:
-                    print("** instance id missing **")
-                else:
-                    try:
-                        obj = models.storage.all()[obj_id]
-                    except KeyError:
-                        print("** no instance found **")
-                    else:
-                        try:
-                            attr = line[2]
-                        except IndexError:
-                            print("** attribute name missing **")
-                        else:
-                            try:
-                                val = line[3]
-                            except IndexError:
-                                print("** value missing **")
-                            else:
-                                try:
-                                    setattr(obj, attr, val)
-                                except AttributeError:
-                                    print("** cannot set val: {}".format(val) +
-                                          " for attr: ({}) **".format(attr))
-                                else:
-                                    obj.save()
+            setattr(models.storage.all()[objAsKey], key, value)
+
+    def default(self, line):
+        """
+        will ensure input is recycled through to meet contracts
+        outlined in DBC methods
+        """
+        listOfCmdMethods = {"show": self.do_show,
+                            "create": self.do_create,
+                            "update": self.do_update,
+                            "destroy": self.do_destroy,
+                            "all": self.do_all,
+                            "count": self.count_instance}
+        if "." not in line:
+            print("*** unknown syntax: " + line)
+            return
+        if "(" not in line or ")" not in line[-1]:
+            print(line + " *** missing parenthesis")
+            return
+        lineAsArgs = re.findall(r"(.*?)\.(.*?)\((.*?)\)", line)
+        if len(lineAsArgs) == 0:
+            print("*** unknown syntax: " + line)
+            return
+        if lineAsArgs[0][1] not in listOfCmdMethods:
+            print("*** command: " + lineAsArgs[0][1] + " is not reccognised")
+            return
+        className = lineAsArgs[0][0]
+        method = lineAsArgs[0][1]
+        info = lineAsArgs[0][2]
+        argumentString = self.create_argument_string(className, method, info)
+        if argumentString is None:
+            return
+        listOfCmdMethods[method](argumentString)
+
+    @staticmethod
+    def create_argument_string(className, method, info):
+        """ this method is used to create a compatible string argument"""
+        argumentString = className + " "
+        if "," in info:
+            if "{" in info:
+                InfoSplit = re.findall(r'(.*)(\{.*?\})$', info)
+                if len(InfoSplit) == 0:
+                    print("Incorrect dictionary syntax in " + info)
+                    return (None)
+                firstArgument = InfoSplit[0][0].replace(",", "")
+                dictionaryInLine = InfoSplit[0][1]
+                argumentString += firstArgument + dictionaryInLine
             else:
-                print("** class doesn't exist **")
-
-    def do_count(self, line):
-        """Count the number of instances of class."""
-        if len(line) == 0:
-            print(len([str(v) for v in models.storage.all().values()]))
-        elif line not in models.class_dict:
-            print("** class doesn't exist **")
+                argumentString += info.replace(",", "")
         else:
-            print(len([str(v) for k, v in models.storage.all().items()
-                       if line in k]))
+            argumentString += info
+        return (argumentString)
 
-    def do_BaseModel(self, line):
-        """Usage: cmd can be any of: all, show, update, destroy, or create."""
-        cmd, args = parse(line)
-        self.onecmd(' '.join([cmd, 'BaseModel', args]))
+    def help_count(self):
+        print("\n\
+****HELP****\n\
+Will count number of instances of a class.\n\
+Usage: <class name>.count()\n\
+")
 
-    def do_User(self, line):
-        """Usage: User. cmd."""
-        cmd, args = parse(line)
-        self.onecmd(' '.join([cmd, 'User', args]))
+    def count_instance(self, arg):
+        """retrieves number of instances of a class"""
+        count = 0
+        instanceStorage = models.storage.all()
+        arg = shlex.split(arg)
+        for (key, value) in instanceStorage.items():
+            if arg[0] in key:
+                count += 1
+        print(count)
 
-    def do_State(self, line):
-        """Usage: State. cmd."""
-        cmd, args = parse(line)
-        self.onecmd(' '.join([cmd, 'State', args]))
+    @classmethod
+    def verify_class_for_default(cls, classNameToCheck):
+        """verify that class being created is defined in the project
+        """
+        if classNameToCheck not in cls.listOfProjectClass:
+            return False
+        return True
 
-    def do_City(self, line):
-        """Usage: City. cmd."""
-        cmd, args = parse(line)
-        self.onecmd(' '.join([cmd, 'City', args]))
+    @classmethod
+    def verify_class_in_project(cls, args):
+        """verify that class being created is defined in the project
+        """
+        if len(args) == 0:
+            print("** class name missing **")
+            return False
+        if args[0] not in cls.listOfProjectClass:
+            print("** class doesn't exist **")
+            return False
+        return True
 
-    def do_Amenity(self, line):
-        """Usage: Amenity. cmd."""
-        cmd, args = parse(line)
-        self.onecmd(' '.join([cmd, 'Amenity', args]))
+    @staticmethod
+    def verify_id_exists(args):
+        """verify that the ID being called exists"""
+        if len(args) < 2:
+            print("** instance id missing **")
+            return False
+        objects = models.storage.all()
+        string_key = str(args[0]) + '.' + str(args[1])
+        if string_key not in objects.keys():
+            print("** no instance found **")
+            return False
+        return True
 
-    def do_Place(self, line):
-        """Usage: Place. cmd."""
-        cmd, args = parse(line)
-        self.onecmd(' '.join([cmd, 'Place', args]))
-
-    def do_Review(self, line):
-        """Usage: Review. cmd."""
-        cmd, args = parse(line)
-        self.onecmd(' '.join([cmd, 'Review', args]))
-
-
-def parse(line):
-    """Parse method-like command."""
-    pattern = '\.([^.]+)\(|[\s,()]*([^(),]+)[\s,()]*'
-    args = re.findall(pattern, line)
-    cmd = args[0][0]
-    try:
-        args = args[1:]
-    except IndexError:
-        line = ''
-    else:
-        line = ' '.join(map(lambda x: x[1].strip('"'), args))
-    return cmd, line
+    @staticmethod
+    def verify_attribute_arguments(args):
+        """verify the attribute argument was passed correctly
+        """
+        if len(args) < 3:
+            print("** attribute name missing **")
+            return False
+        if len(args) < 4:
+            print("** value missing **")
+            return False
+        return True
 
 
 if __name__ == '__main__':
-    """Loop"""
     HBNBCommand().cmdloop()

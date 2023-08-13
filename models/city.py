@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-"""Class city that inherited from Basemodel"""
-
-import models
+"""City module"""
 
 
-class City(models.BaseModel):
-    """Class to Initialize City"""
+from models.base_model import BaseModel
+
+
+class City(BaseModel):
+    """City class that inherits from BaseModel"""
     state_id = ""
     name = ""

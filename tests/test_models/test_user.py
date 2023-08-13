@@ -1,115 +1,112 @@
 #!/usr/bin/python3
-"""Test User classes"""
+"""
+test module for testing city models
+"""
 
-from datetime import datetime
-from models import user
-from models.base_model import BaseModel
-import pep8
-import inspect
 import unittest
+import inspect
+import pycodestyle
+import json
+import os
+import datetime
+from models.base_model import BaseModel
+from models import user
 User = user.User
 
 
-class TestUserDocs(unittest.TestCase):
-    """Tests documentation and style"""
+class TestBaseDocs(unittest.TestCase):
+    """ Tests for documentation of class"""
+
     @classmethod
     def setUpClass(cls):
-        """Setup for docstrings"""
-        cls.user_f = inspect.getmembers(User, inspect.isfunction)
+        """Set up for the doc tests"""
+        cls.base_funcs = inspect.getmembers(User, inspect.isfunction)
 
-    def test_pep8_conformance_user(self):
-        """Test user.py conforms to PEP8."""
-        pep8s = pep8.StyleGuide(quiet=True)
-        result = pep8s.check_files(['models/user.py'])
+    def test_conformance_class(self):
+        """Test that we conform to Pycodestyle."""
+        style = pycodestyle.StyleGuide(quiet=True)
+        result = style.check_files(['models/user.py'])
         self.assertEqual(result.total_errors, 0,
-                         "Found code style errors and warnings.")
+                         "Found code style errors (and warnings).")
 
-    def test_pep8_conformance_test_user(self):
-        """Test test_user.py conforms to PEP8."""
-        pep8s = pep8.StyleGuide(quiet=True)
-        result = pep8s.check_files(['tests/test_models/test_user.py'])
+    def test_conformance_test(self):
+        """Test that we conform to Pycodestyle."""
+        style = pycodestyle.StyleGuide(quiet=True)
+        result = style.check_files(['tests/test_models/test_user.py'])
         self.assertEqual(result.total_errors, 0,
-                         "Found code style errors and warnings.")
+                         "Found code style errors (and warnings).")
 
-    def test_user_module_docstring(self):
-        """Test user.py docstring"""
-        self.assertIsNot(user.__doc__, None,
-                         "user.py needs a docstring")
-        self.assertTrue(len(user.__doc__) >= 1,
-                        "user.py needs a docstring")
+    def test_module_docstr(self):
+        """ Tests for docstring"""
+        self.assertTrue(len(User.__doc__) >= 1)
 
-    def test_user_class_docstring(self):
-        """Test City class docstring"""
-        self.assertIsNot(User.__doc__, None,
-                         "User class needs a docstring")
-        self.assertTrue(len(User.__doc__) >= 1,
-                        "User class needs a docstring")
+    def test_class_docstr(self):
+        """ Tests for docstring"""
+        self.assertTrue(len(User.__doc__) >= 1)
 
-    def test_user_func_docstrings(self):
-        """Test docstrings in User methods"""
-        for func in self.user_f:
-            self.assertIsNot(func[1].__doc__, None,
-                             "{:s} method needs a docstring".format(func[0]))
-            self.assertTrue(len(func[1].__doc__) >= 1,
-                            "{:s} method needs a docstring".format(func[0]))
+    def test_func_docstr(self):
+        """Tests for docstrings in all functions"""
+        for func in self.base_funcs:
+            self.assertTrue(len(func[1].__doc__) >= 1)
 
 
-class TestUser(unittest.TestCase):
-    """Test User class"""
-    def test_is_subclass(self):
-        """Test that User is a subclass"""
-        user = User()
-        self.assertIsInstance(user, BaseModel)
-        self.assertTrue(hasattr(user, "id"))
-        self.assertTrue(hasattr(user, "created_at"))
-        self.assertTrue(hasattr(user, "updated_at"))
+class TestBaseModel(unittest.TestCase):
+    """ Test for BaseModel class """
 
-    def test_email_attr(self):
-        """Test that User has attr email"""
-        user = User()
-        self.assertTrue(hasattr(user, "email"))
-        self.assertEqual(user.email, "")
+    def setUp(self):
+        """ general test setup, will create a temp baseModel """
+        self.temp_b = User()
+        self.temp_b1 = User()
 
-    def test_password_attr(self):
-        """Test that User has attr password"""
-        user = User()
-        self.assertTrue(hasattr(user, "password"))
-        self.assertEqual(user.password, "")
+    def tearDown(self):
+        """ general tear down, will delete the temp baseModel """
+        self.temp_b = None
+        self.temp_b1 = None
 
-    def test_first_name_attr(self):
-        """Test that User has attr first_name"""
-        user = User()
-        self.assertTrue(hasattr(user, "first_name"))
-        self.assertEqual(user.first_name, "")
+    def test_type_creation(self):
+        """ will test the correct type of creation """
+        self.assertEqual(type(self.temp_b), User)
+        self.assertEqual(type(self.temp_b1), User)
 
-    def test_last_name_attr(self):
-        """Test that User has attr last_name"""
-        user = User()
-        self.assertTrue(hasattr(user, "last_name"))
-        self.assertEqual(user.last_name, "")
+    def test_uuid(self):
+        """test UUID for BaseModel """
+        self.assertNotEqual(self.temp_b.id, self.temp_b1.id)
+        self.assertRegex(self.temp_b.id,
+                         '^[0-9a-f]{8}-[0-9a-f]{4}'
+                         '-[0-9a-f]{4}-[0-9a-f]{4}'
+                         '-[0-9a-f]{12}$')
+        self.assertRegex(self.temp_b1.id,
+                         '^[0-9a-f]{8}-[0-9a-f]{4}'
+                         '-[0-9a-f]{4}-[0-9a-f]{4}'
+                         '-[0-9a-f]{12}$')
 
-    def test_to_dict_creates_dict(self):
-        """Test to_dict method creates a dictionary"""
-        u = User()
-        new_d = u.to_dict()
-        self.assertEqual(type(new_d), dict)
-        for attr in u.__dict__:
-            self.assertTrue(attr in new_d)
-            self.assertTrue("__class__" in new_d)
+    def test_default_values(self):
+        """ will test the ability to update """
+        self.assertEqual(self.temp_b.first_name, "")
+        self.assertEqual(self.temp_b.last_name, "")
+        self.assertEqual(self.temp_b.password, "")
+        self.assertEqual(self.temp_b.email, "")
 
-    def test_to_dict_values(self):
-        """Test values in dict"""
-        t_format = "%Y-%m-%dT%H:%M:%S.%f"
-        u = User()
-        new_d = u.to_dict()
-        self.assertEqual(new_d["__class__"], "User")
-        self.assertEqual(type(new_d["created_at"]), str)
-        self.assertEqual(type(new_d["updated_at"]), str)
-        self.assertEqual(new_d["created_at"], u.created_at.strftime(t_format))
-        self.assertEqual(new_d["updated_at"], u.updated_at.strftime(t_format))
+    def test_str_method(self):
+        """ will test the __str__ method to ensure it is working """
+        returned_string = str(self.temp_b)
+        test_string = f"[User] ({self.temp_b.id}) {self.temp_b.__dict__}"
+        self.assertEqual(returned_string, test_string)
 
-    def test_str(self):
-        """Test that the str method"""
-        user = User()
-        string = "[User] ({}) {}".format(user.id, user.__dict__)
-        self.assertEqual(string, str(user))
+    def test_to_dict(self):
+        """tests the to_dict method to ensure it is working """
+        temp_b_dict = self.temp_b.to_dict()
+        self.assertEqual(str, type(temp_b_dict['created_at']))
+        self.assertEqual(temp_b_dict['created_at'],
+                         self.temp_b.created_at.isoformat())
+        self.assertEqual(temp_b_dict['__class__'],
+                         self.temp_b.__class__.__name__)
+        self.assertEqual(temp_b_dict['id'], self.temp_b.id)
+
+    def test_updated_time(self):
+        """test that updated time gets updated"""
+        time1 = self.temp_b.updated_at
+        self.temp_b.save()
+        time2 = self.temp_b.updated_at
+        self.assertNotEqual(time1, time2)
+        self.assertEqual(type(time1), datetime.datetime)

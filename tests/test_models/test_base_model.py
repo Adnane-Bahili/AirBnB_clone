@@ -1,158 +1,111 @@
 #!/usr/bin/python3
-"""Test BaseModel for Comproving expectect outputs"""
-from datetime import datetime
-import time
+"""
+Contains tests for Base class
+"""
+
 import unittest
 import inspect
+import pycodestyle
+import json
+import os
+import datetime
 import models
-import pep8 as pycodestyle
-from unittest import mock
-BaseModel = models.base_model.BaseModel
-module_doc = models.base_model.__doc__
+Base = models.base_model.BaseModel
 
 
-class TestBaseModelDocs(unittest.TestCase):
-    """Tests the documentation and style"""
+class TestBaseDocs(unittest.TestCase):
+    """ Tests for documentation of class"""
 
     @classmethod
-    def setUpClass(self):
-        """Set up docstring tests"""
-        self.base_funcs = inspect.getmembers(BaseModel, inspect.isfunction)
+    def setUpClass(cls):
+        """Set up for the doc tests"""
+        cls.base_funcs = inspect.getmembers(Base, inspect.isfunction)
 
-    def test_pep8_conformance(self):
-        """Test PEP8 style."""
-        for path in ['models/base_model.py',
-                     'tests/test_models/test_base_model.py']:
-            with self.subTest(path=path):
-                errors = pycodestyle.Checker(path).check_all()
-                self.assertEqual(errors, 0)
+    def test_conformance_class(self):
+        """Test that we conform to Pycodestyle."""
+        style = pycodestyle.StyleGuide(quiet=True)
+        result = style.check_files(['models/base_model.py'])
+        self.assertEqual(result.total_errors, 0,
+                         "Found code style errors (and warnings).")
 
-    def test_module_docstring(self):
-        """Test for the module docstring"""
-        self.assertIsNot(module_doc, None,
-                         "base_model.py needs a docstring")
-        self.assertTrue(len(module_doc) > 1,
-                        "base_model.py needs a docstring")
+    def test_conformance_test(self):
+        """Test that we conform to Pycodestyle."""
+        style = pycodestyle.StyleGuide(quiet=True)
+        result = style.check_files(['tests/test_models/test_base_model.py'])
+        self.assertEqual(result.total_errors, 0,
+                         "Found code style errors (and warnings).")
 
-    def test_class_docstring(self):
-        """Test for the class docstring"""
-        self.assertIsNot(BaseModel.__doc__, None,
-                         "BaseModel class needs a docstring")
-        self.assertTrue(len(BaseModel.__doc__) >= 1,
-                        "BaseModel class needs a docstring")
+    def test_module_docstr(self):
+        """ Tests for docstring"""
+        self.assertTrue(len(Base.__doc__) >= 1)
 
-    def test_func_docstrings(self):
-        """Test for the presence of docstrings"""
+    def test_class_docstr(self):
+        """ Tests for docstring"""
+        self.assertTrue(len(Base.__doc__) >= 1)
+
+    def test_func_docstr(self):
+        """Tests for docstrings in all functions"""
         for func in self.base_funcs:
-            with self.subTest(function=func):
-                self.assertIsNot(
-                    func[1].__doc__,
-                    None,
-                    "{:s} method needs a docstring".format(func[0])
-                )
-                self.assertTrue(
-                    len(func[1].__doc__) > 1,
-                    "{:s} method needs a docstring".format(func[0])
-                )
+            self.assertTrue(len(func[1].__doc__) >= 1)
 
 
 class TestBaseModel(unittest.TestCase):
-    """Test the BaseModel class"""
-    @mock.patch('models.storage')
-    def test_instantiation(self, mock_storage):
-        """Test that object is correctly created"""
-        inst = BaseModel()
-        self.assertIs(type(inst), BaseModel)
-        inst.name = "Holberton"
-        inst.number = 89
-        attrs_types = {
-            "id": str,
-            "created_at": datetime,
-            "updated_at": datetime,
-            "name": str,
-            "number": int
-        }
-        for attr, typ in attrs_types.items():
-            with self.subTest(attr=attr, typ=typ):
-                self.assertIn(attr, inst.__dict__)
-                self.assertIs(type(inst.__dict__[attr]), typ)
-        self.assertTrue(mock_storage.new.called)
-        self.assertEqual(inst.name, "Holberton")
-        self.assertEqual(inst.number, 89)
+    """ Test for BaseModel class """
 
-    def test_datetime_attributes(self):
-        """Testing correct datetime assignation"""
-        tic = datetime.now()
-        inst1 = BaseModel()
-        toc = datetime.now()
-        self.assertTrue(tic <= inst1.created_at <= toc)
-        time.sleep(1e-4)
-        tic = datetime.now()
-        inst2 = BaseModel()
-        toc = datetime.now()
-        self.assertTrue(tic <= inst2.created_at <= toc)
-        self.assertEqual(inst1.created_at, inst1.updated_at)
-        self.assertEqual(inst2.created_at, inst2.updated_at)
-        self.assertNotEqual(inst1.created_at, inst2.created_at)
-        self.assertNotEqual(inst1.updated_at, inst2.updated_at)
+    def setUp(self):
+        """ general test setup, will create a temp baseModel """
+        self.temp_b = Base()
+        self.temp_b1 = Base()
+
+    def tearDown(self):
+        """ general tear down, will delete the temp baseModel """
+        self.temp_b = None
+        self.temp_b1 = None
+
+    def test_type_creation(self):
+        """ will test the correct type of creation """
+        self.assertEqual(type(self.temp_b), Base)
+        self.assertEqual(type(self.temp_b1), Base)
 
     def test_uuid(self):
-        """Test uuid"""
-        inst1 = BaseModel()
-        inst2 = BaseModel()
-        for inst in [inst1, inst2]:
-            uuid = inst.id
-            with self.subTest(uuid=uuid):
-                self.assertIs(type(uuid), str)
-                self.assertRegex(uuid,
-                                 '^[0-9a-f]{8}-[0-9a-f]{4}'
-                                 '-[0-9a-f]{4}-[0-9a-f]{4}'
-                                 '-[0-9a-f]{12}$')
-        self.assertNotEqual(inst1.id, inst2.id)
+        """test UUID for BaseModel """
+        self.assertNotEqual(self.temp_b.id, self.temp_b1.id)
+        self.assertRegex(self.temp_b.id,
+                         '^[0-9a-f]{8}-[0-9a-f]{4}'
+                         '-[0-9a-f]{4}-[0-9a-f]{4}'
+                         '-[0-9a-f]{12}$')
+        self.assertRegex(self.temp_b1.id,
+                         '^[0-9a-f]{8}-[0-9a-f]{4}'
+                         '-[0-9a-f]{4}-[0-9a-f]{4}'
+                         '-[0-9a-f]{12}$')
+
+    def test_update(self):
+        """ will test the ability to update """
+        self.temp_b.name = "Betty"
+        self.temp_b.age = 105
+        self.assertEqual(self.temp_b.name, "Betty")
+        self.assertEqual(self.temp_b.age, 105)
+
+    def test_str_method(self):
+        """ will test the __str__ method to ensure it is working """
+        returned_string = str(self.temp_b)
+        test_string = f"[BaseModel] ({self.temp_b.id}) {self.temp_b.__dict__}"
+        self.assertEqual(returned_string, test_string)
 
     def test_to_dict(self):
-        """Test to dictionary for json"""
-        my_model = BaseModel()
-        my_model.name = "Holberton"
-        my_model.my_number = 89
-        d = my_model.to_dict()
-        expected_attrs = ["id",
-                          "created_at",
-                          "updated_at",
-                          "name",
-                          "my_number",
-                          "__class__"]
-        self.assertCountEqual(d.keys(), expected_attrs)
-        self.assertEqual(d['__class__'], 'BaseModel')
-        self.assertEqual(d['name'], "Holberton")
-        self.assertEqual(d['my_number'], 89)
+        """tests the to_dict method to ensure it is working """
+        temp_b_dict = self.temp_b.to_dict()
+        self.assertEqual(str, type(temp_b_dict['created_at']))
+        self.assertEqual(temp_b_dict['created_at'],
+                         self.temp_b.created_at.isoformat())
+        self.assertEqual(temp_b_dict['__class__'],
+                         self.temp_b.__class__.__name__)
+        self.assertEqual(temp_b_dict['id'], self.temp_b.id)
 
-    def test_to_dict_values(self):
-        """Test that values in dict are correct"""
-        t_format = "%Y-%m-%dT%H:%M:%S.%f"
-        bm = BaseModel()
-        new_d = bm.to_dict()
-        self.assertEqual(new_d["__class__"], "BaseModel")
-        self.assertEqual(type(new_d["created_at"]), str)
-        self.assertEqual(type(new_d["updated_at"]), str)
-        self.assertEqual(new_d["created_at"], bm.created_at.strftime(t_format))
-        self.assertEqual(new_d["updated_at"], bm.updated_at.strftime(t_format))
-
-    def test_str(self):
-        """test the str method"""
-        inst = BaseModel()
-        string = "[BaseModel] ({}) {}".format(inst.id, inst.__dict__)
-        self.assertEqual(string, str(inst))
-
-    @mock.patch('models.storage')
-    def test_save(self, mock_storage):
-        """Test that save method updates."""
-        inst = BaseModel()
-        old_created_at = inst.created_at
-        old_updated_at = inst.updated_at
-        inst.save()
-        new_created_at = inst.created_at
-        new_updated_at = inst.updated_at
-        self.assertNotEqual(old_updated_at, new_updated_at)
-        self.assertEqual(old_created_at, new_created_at)
-        self.assertTrue(mock_storage.save.called)
+    def test_updated_time(self):
+        """test that updated time gets updated"""
+        time1 = self.temp_b.updated_at
+        self.temp_b.save()
+        time2 = self.temp_b.updated_at
+        self.assertNotEqual(time1, time2)
+        self.assertEqual(type(time1), datetime.datetime)

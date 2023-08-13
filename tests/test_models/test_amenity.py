@@ -1,70 +1,109 @@
 #!/usr/bin/python3
-"""Unit test for the file storage class
 """
+test module for testing city models
+"""
+
 import unittest
-# import json
-import pep8
-from models import amenity
-from models.amenity import Amenity
-from models.base_model import BaseModel
-from models import storage
+import inspect
+import pycodestyle
+import json
 import os
+import datetime
+from models.base_model import BaseModel
+from models import amenity
+Amenity = amenity.Amenity
 
 
-class TestAmenityClass(unittest.TestCase):
-    """TestAmenityClass test for the inheretit class
-    Amenity, this tests that the output is as expected
-    Args:
-        unittest (): Propertys for unit testing
-    """
+class TestBaseDocs(unittest.TestCase):
+    """ Tests for documentation of class"""
 
-    def tearDown(self):
-        """ destroys created file """
-        storage._FileStorage__file_path = "file.json"
-        try:
-            os.remove("test.json")
-        except FileNotFoundError:
-            pass
+    @classmethod
+    def setUpClass(cls):
+        """Set up for the doc tests"""
+        cls.base_funcs = inspect.getmembers(Amenity, inspect.isfunction)
+
+    def test_conformance_class(self):
+        """Test that we conform to Pycodestyle."""
+        style = pycodestyle.StyleGuide(quiet=True)
+        result = style.check_files(['models/amenity.py'])
+        self.assertEqual(result.total_errors, 0,
+                         "Found code style errors (and warnings).")
+
+    def test_conformance_test(self):
+        """Test that we conform to Pycodestyle."""
+        style = pycodestyle.StyleGuide(quiet=True)
+        result = style.check_files(['tests/test_models/test_amenity.py'])
+        self.assertEqual(result.total_errors, 0,
+                         "Found code style errors (and warnings).")
+
+    def test_module_docstr(self):
+        """ Tests for docstring"""
+        self.assertTrue(len(Amenity.__doc__) >= 1)
+
+    def test_class_docstr(self):
+        """ Tests for docstring"""
+        self.assertTrue(len(Amenity.__doc__) >= 1)
+
+    def test_func_docstr(self):
+        """Tests for docstrings in all functions"""
+        for func in self.base_funcs:
+            self.assertTrue(len(func[1].__doc__) >= 1)
+
+
+class TestBaseModel(unittest.TestCase):
+    """ Test for BaseModel class """
 
     def setUp(self):
-        """Return to "" class attributes"""
-        with open("test.json", 'w'):
-            storage._FileStorage__file_path = "test.json"
-            storage._FileStorage__objects = {}
-        Amenity.name = ""
+        """ general test setup, will create a temp baseModel """
+        self.temp_b = Amenity()
+        self.temp_b1 = Amenity()
 
-    def test_module_doc(self):
-        """ check for module documentation """
-        self.assertTrue(len(amenity.__doc__) > 0)
+    def tearDown(self):
+        """ general tear down, will delete the temp baseModel """
+        self.temp_b = None
+        self.temp_b1 = None
 
-    def test_class_doc(self):
-        """ check for documentation """
-        self.assertTrue(len(Amenity.__doc__) > 0)
+    def test_type_creation(self):
+        """ will test the correct type of creation """
+        self.assertEqual(type(self.temp_b), Amenity)
+        self.assertEqual(type(self.temp_b1), Amenity)
 
-    def test_method_docs(self):
-        """ check for method documentation """
-        for func in dir(Amenity):
-            self.assertTrue(len(func.__doc__) > 0)
+    def test_uuid(self):
+        """test UUID for BaseModel """
+        self.assertNotEqual(self.temp_b.id, self.temp_b1.id)
+        self.assertRegex(self.temp_b.id,
+                         '^[0-9a-f]{8}-[0-9a-f]{4}'
+                         '-[0-9a-f]{4}-[0-9a-f]{4}'
+                         '-[0-9a-f]{12}$')
+        self.assertRegex(self.temp_b1.id,
+                         '^[0-9a-f]{8}-[0-9a-f]{4}'
+                         '-[0-9a-f]{4}-[0-9a-f]{4}'
+                         '-[0-9a-f]{12}$')
 
-    def test_pep8(self):
-        """ test base and test_base for pep8 conformance """
-        style = pep8.StyleGuide(quiet=True)
-        file1 = 'models/amenity.py'
-        file2 = 'tests/test_models/test_amenity.py'
-        result = style.check_files([file1, file2])
-        self.assertEqual(result.total_errors, 0,
-                         "Found code style errors (and warning).")
+    def test_default_values(self):
+        """ will test the ability to update """
+        self.assertEqual(self.temp_b.name, "")
 
-    def test_is_instance(self):
-        """ Test if user is instance of basemodel """
-        my_Amenity = Amenity()
-        self.assertTrue(isinstance(my_Amenity, BaseModel))
+    def test_str_method(self):
+        """ will test the __str__ method to ensure it is working """
+        returned_string = str(self.temp_b)
+        test_string = f"[Amenity] ({self.temp_b.id}) {self.temp_b.__dict__}"
+        self.assertEqual(returned_string, test_string)
 
-    def test_field_types(self):
-        """ Test field attributes of user """
-        my_Amenity = Amenity()
-        self.assertTrue(type(my_Amenity.name) == str)
+    def test_to_dict(self):
+        """tests the to_dict method to ensure it is working """
+        temp_b_dict = self.temp_b.to_dict()
+        self.assertEqual(str, type(temp_b_dict['created_at']))
+        self.assertEqual(temp_b_dict['created_at'],
+                         self.temp_b.created_at.isoformat())
+        self.assertEqual(temp_b_dict['__class__'],
+                         self.temp_b.__class__.__name__)
+        self.assertEqual(temp_b_dict['id'], self.temp_b.id)
 
-
-if __name__ == '__main__':
-    unittest.main()
+    def test_updated_time(self):
+        """test that updated time gets updated"""
+        time1 = self.temp_b.updated_at
+        self.temp_b.save()
+        time2 = self.temp_b.updated_at
+        self.assertNotEqual(time1, time2)
+        self.assertEqual(type(time1), datetime.datetime)

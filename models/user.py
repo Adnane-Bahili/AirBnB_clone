@@ -1,12 +1,11 @@
 #!/usr/bin/python3
-"""class User from BaseModel"""
+""" Module User """
+from models.base_model import BaseModel
 
-import models
 
-
-class User(models.BaseModel):
-    """User representation"""
-    email = ""
+class User(BaseModel):
+    """Represents a subclass of BaseModel """
     password = ""
+    email = ""
     first_name = ""
     last_name = ""
